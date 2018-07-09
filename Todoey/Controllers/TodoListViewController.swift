@@ -13,6 +13,13 @@ import CoreData
 class TodoListViewController: UITableViewController {
 
     var itemArray = [Item]()
+    //only get called if category has a value
+    var selectedCategory : Category? {
+        didSet{
+            loadItems()
+        }
+    }
+    
     let dataFilePath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first?.appendingPathComponent("Items.plist")
     //context is the temperary loading aera
     let context = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
@@ -22,8 +29,6 @@ class TodoListViewController: UITableViewController {
     override func viewDidLoad() {
         
         super.viewDidLoad()
-        
-        loadItems()
     }
     
     
@@ -89,6 +94,7 @@ class TodoListViewController: UITableViewController {
                 let newItem = Item(context: self.context)
                 newItem.title = textField.text!
                 newItem.done = false
+                newItem.parentCategory = self.selectedCategory
                 
                 self.itemArray.append(newItem)
                 
@@ -118,10 +124,8 @@ class TodoListViewController: UITableViewController {
     func saveItems () {
         
         do {
-
             
             try context.save()
-            
             
         } catch {
             print("Error Saving Context: \(error)")
@@ -132,8 +136,19 @@ class TodoListViewController: UITableViewController {
     }
     
     ///
-    func loadItems (with request : NSFetchRequest<Item> = Item.fetchRequest()) {
+    func loadItems (with request : NSFetchRequest<Item> = Item.fetchRequest(), predicate : NSPredicate? = nil) {
 
+        //create a predicate to filter out unwanted items
+        let categoryPredicate = NSPredicate(format: "parentCategory.name MATCHES %@", selectedCategory!.categoryName!)
+        
+        if let addtionalPredicate = predicate {
+            
+            request.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [categoryPredicate, predicate!])
+        } else {
+            request.predicate = categoryPredicate
+        }
+        
+        
         do {
             
             itemArray = try context.fetch(request)
@@ -149,7 +164,12 @@ class TodoListViewController: UITableViewController {
     
 }
 
+
+
+
+
 //MARK: - split up functionalities to make code more readable
+//search function
 extension TodoListViewController: UISearchBarDelegate {
     
     func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
